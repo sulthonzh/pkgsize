@@ -14,7 +14,7 @@ express  205.8 kB  30 deps ~35ms
 
 ## Why?
 
-`npm install` hides the cost. You add a package, and suddenly you've pulled in 200 dependencies you didn't ask for. `pkgsize` shows you the real price upfront — unpacked size, dependency tree depth, and estimated download time.
+`npm install` hides the cost. You add a package, and suddenly you've pulled in 200 dependencies you didn't ask for. `pkgsize` shows you the real price upfront — unpacked size, dependency count, and estimated download time.
 
 ## Install
 
@@ -34,28 +34,53 @@ pkgsize lodash axios express
 # Specific version
 pkgsize react@18
 
-# Compare with what's installed
-pkgsize --compare lodash
-
 # JSON output for scripts
 pkgsize --json lodash
 
 # Show dependency tree
 pkgsize --tree express
+pkgsize --tree --depth 3 next
+
+# Compare installed vs published
+pkgsize --compare lodash axios
+pkgsize --compare            # compares all deps from package.json
 ```
 
-## What it shows
+## Commands
 
-| Column | Meaning |
-|--------|---------|
-| Size | Unpacked size on disk |
-| Deps | Number of dependencies |
-| DL | Estimated download time on 10Mbps |
-| Depth | Max depth of dependency tree |
+| Flag | What it does |
+|------|-------------|
+| (default) | Show size, deps, download time |
+| `--tree` | Show dependency tree |
+| `--depth N` | Tree depth (1–5, default 2) |
+| `--compare` | Compare local node_modules vs registry |
+| `--json` | Machine-readable output |
+| `--raw` | Raw registry JSON |
+
+## What the output means
+
+- **Size** — unpacked size on disk
+- **Deps** — number of direct dependencies
+- **DL time** — estimated download on 10Mbps
+
+## --compare
+
+Compares what you have installed locally against the latest published version:
+
+```bash
+pkgsize --compare lodash axios
+```
+
+```
+lodash    local:     71.5 kB  remote:     71.5 kB  same        ✓
+axios     local:    412.0 kB  remote:    380.2 kB  +31.8 kB    1.6.0 → 1.7.0
+```
+
+Run without package names to compare everything in your `package.json`.
 
 ## How it works
 
-Queries the npm registry API — no install needed. Fast, no side effects.
+Queries the npm registry API directly — no install, no side effects. The `--compare` flag reads from your local `node_modules` to measure actual disk usage.
 
 ## License
 

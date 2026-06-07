@@ -1,5 +1,6 @@
 import { fetchPackageStats, formatStatsTable, type PackageStats } from "./index.js";
 import { fetchTree, renderTree } from "./tree.js";
+import { comparePackages, formatCompareTable } from "./compare.js";
 
 const args = process.argv.slice(2);
 
@@ -14,12 +15,14 @@ Usage:
   pkgsize --raw express         Raw JSON from registry
   pkgsize --tree react          Show dependency tree
   pkgsize --tree --depth 3 react   Tree with custom depth (default: 2)
+  pkgsize --compare             Compare installed vs published versions
 
 Options:
   --json           Machine-readable JSON output
   --raw            Raw registry data
   --tree           Show dependency tree
   --depth <n>      Tree depth (default: 2, max: 5)
+  --compare        Compare local node_modules vs registry
   -h, --help       Show this help
 
 Examples:
@@ -28,6 +31,7 @@ Examples:
   pkgsize react@18 react-dom@18
   pkgsize --tree express
   pkgsize --tree --depth 3 next
+  pkgsize --compare lodash axios
 `);
   process.exit(0);
 }
@@ -36,6 +40,7 @@ const flags = {
   json: args.includes("--json"),
   raw: args.includes("--raw"),
   tree: args.includes("--tree"),
+  compare: args.includes("--compare"),
 };
 
 // parse --depth
@@ -47,12 +52,44 @@ if (depthIdx !== -1 && args[depthIdx + 1]) {
 
 const packages = args.filter((a) => !a.startsWith("-") && !a.match(/^\d+$/));
 
-if (packages.length === 0) {
+if (packages.length === 0 && !flags.compare) {
   console.error("No packages specified. Run `pkgsize --help` for usage.");
   process.exit(1);
 }
 
 async function main() {
+  // Compare mode — compare local node_modules vs registry
+  if (flags.compare) {
+    // If no packages specified, compare all from package.json
+    let pkgsToCompare = packages;
+    if (pkgsToCompare.length === 0) {
+      try {
+        const { readFileSync } = await import("node:fs");
+        const { resolve } = await import("node:path");
+        const pkgJson = JSON.parse(readFileSync(resolve("package.json"), "utf-8"));
+        const deps = Object.keys(pkgJson.dependencies || {});
+        const devDeps = Object.keys(pkgJson.devDependencies || {});
+        pkgsToCompare = [...deps, ...devDeps];
+        if (pkgsToCompare.length === 0) {
+          console.error("No dependencies found in package.json");
+          process.exit(1);
+        }
+        console.log(`Comparing ${pkgsToCompare.length} packages from package.json...\n`);
+      } catch {
+        console.error("No package.json found. Specify packages: pkgsize --compare lodash axios");
+        process.exit(1);
+      }
+    }
+
+    const results = await comparePackages(pkgsToCompare);
+    if (flags.json) {
+      console.log(JSON.stringify(results, null, 2));
+    } else {
+      console.log(formatCompareTable(results));
+    }
+    return;
+  }
+
   if (flags.tree) {
     // tree mode — one package at a time
     for (const pkg of packages) {
