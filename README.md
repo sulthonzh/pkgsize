@@ -55,7 +55,10 @@ pkgsize --compare            # compares all deps from package.json
 | `--depth N` | Tree depth (1–5, default 2) |
 | `--compare` | Compare local node_modules vs registry |
 | `--json` | Machine-readable output |
+| `--markdown` | Markdown table output (great for PR comments) |
 | `--raw` | Raw registry JSON |
+| `--sort <field>` | Sort by: size, deps, time, name |
+| `--asc` | Sort ascending (default: descending) |
 
 ## What the output means
 
@@ -77,6 +80,36 @@ axios     local:    412.0 kB  remote:    380.2 kB  +31.8 kB    1.6.0 → 1.7.0
 ```
 
 Run without package names to compare everything in your `package.json`.
+
+## --sort
+
+Sort results by any field:
+
+```bash
+# Biggest first
+pkgsize --sort size lodash axios express
+
+# Most deps first
+pkgsize --sort deps express next fastify
+
+# Alphabetical
+pkgsize --sort name --asc lodash axios express
+```
+
+## --markdown
+
+Get a markdown table — useful for pasting into PR comments or docs:
+
+```bash
+pkgsize --markdown --sort size lodash express
+```
+
+```
+| Package | Size | Deps | Download |
+|---------|------|------|----------|
+| express | 205.8 kB | 30 | ~35ms |
+| lodash  | 71.5 kB  | 0  | ~12ms |
+```
 
 ## How it works
 
