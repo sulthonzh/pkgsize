@@ -1,4 +1,4 @@
-import { fetchPackageStats, formatStatsTable, type PackageStats } from "./index.js";
+import { fetchPackageStats, formatStatsTable, formatStatsMarkdown, sortStats, type PackageStats } from "./index.js";
 import { fetchTree, renderTree } from "./tree.js";
 import { comparePackages, formatCompareTable } from "./compare.js";
 
@@ -19,10 +19,13 @@ Usage:
 
 Options:
   --json           Machine-readable JSON output
+  --markdown       Markdown table output (great for PR comments)
   --raw            Raw registry data
   --tree           Show dependency tree
   --depth <n>      Tree depth (default: 2, max: 5)
   --compare        Compare local node_modules vs registry
+  --sort <field>   Sort by: size, deps, time, name (default: order given)
+  --asc            Sort ascending (default: descending)
   -h, --help       Show this help
 
 Examples:
@@ -32,6 +35,8 @@ Examples:
   pkgsize --tree express
   pkgsize --tree --depth 3 next
   pkgsize --compare lodash axios
+  pkgsize --sort size lodash axios express
+  pkgsize --markdown --sort deps express lodash
 `);
   process.exit(0);
 }
@@ -41,6 +46,8 @@ const flags = {
   raw: args.includes("--raw"),
   tree: args.includes("--tree"),
   compare: args.includes("--compare"),
+  markdown: args.includes("--markdown"),
+  asc: args.includes("--asc"),
 };
 
 // parse --depth
@@ -50,7 +57,14 @@ if (depthIdx !== -1 && args[depthIdx + 1]) {
   depth = Math.min(Math.max(parseInt(args[depthIdx + 1], 10) || 2, 1), 5);
 }
 
-const packages = args.filter((a) => !a.startsWith("-") && !a.match(/^\d+$/));
+// parse --sort
+let sortField: string | null = null;
+const sortIdx = args.indexOf("--sort");
+if (sortIdx !== -1 && args[sortIdx + 1]) {
+  sortField = args[sortIdx + 1];
+}
+
+const packages = args.filter((a) => !a.startsWith("-") && !a.match(/^\d+$/) && a !== sortField);
 
 if (packages.length === 0 && !flags.compare) {
   console.error("No packages specified. Run `pkgsize --help` for usage.");
@@ -132,8 +146,12 @@ async function main() {
       deprecated: s.deprecated,
     }));
     console.log(JSON.stringify(output, null, 2));
+  } else if (flags.markdown) {
+    const sorted = sortField ? sortStats(results, sortField as any, !flags.asc) : results;
+    console.log(formatStatsMarkdown(sorted));
   } else {
-    console.log(formatStatsTable(results));
+    const sorted = sortField ? sortStats(results, sortField as any, !flags.asc) : results;
+    console.log(formatStatsTable(sorted));
   }
 
   if (errors.length > 0) {

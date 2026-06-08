@@ -134,4 +134,38 @@ export function formatStatsTable(stats: PackageStats[]): string {
   return lines.join("\n");
 }
 
+/**
+ * Sort stats by a given field.
+ */
+export type SortField = "size" | "deps" | "time" | "name";
+
+export function sortStats(stats: PackageStats[], field: SortField, descending = true): PackageStats[] {
+  const sorted = [...stats];
+  const dir = descending ? -1 : 1;
+  sorted.sort((a, b) => {
+    switch (field) {
+      case "size":  return dir * (a.unpackedSize - b.unpackedSize);
+      case "deps":  return dir * (a.dependencyCount - b.dependencyCount);
+      case "time":  return dir * (a.downloadTime10Mbps - b.downloadTime10Mbps);
+      case "name":  return dir * a.name.localeCompare(b.name);
+      default:      return 0;
+    }
+  });
+  return sorted;
+}
+
+/**
+ * Format stats as a markdown table.
+ */
+export function formatStatsMarkdown(stats: PackageStats[]): string {
+  const lines: string[] = [];
+  lines.push("| Package | Size | Deps | Download |");
+  lines.push("|---------|------|------|----------|");
+  for (const s of stats) {
+    const deprecated = s.deprecated ? " ⚠️" : "";
+    lines.push(`| ${s.name}${deprecated} | ${formatBytes(s.unpackedSize)} | ${s.dependencyCount} | ~${formatTime(s.downloadTime10Mbps)} |`);
+  }
+  return lines.join("\n");
+}
+
 export { formatBytes, formatTime, parsePackageArg };
